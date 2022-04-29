@@ -4,14 +4,28 @@ const app = express();
 const port = process.env.PORT || 5000;
 const cors = require('cors');
 require('dotenv').config();
+const jwt = require('jsonwebtoken');
 
 // middle ware
 app.use(cors());
 app.use(express.json());
 
 
-//dbname: gadgetFreak
-//collection name: products
+// jwt function
+function verifyJWT(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(401).send({ message: 'unauthorized access' })
+    }
+    const token = authHeader.split(' ')[1]
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(403).send({ message: 'access forbidden' })
+        }
+        req.decoded = decoded
+        next()
+    })
+}
 
 
 
@@ -41,6 +55,13 @@ async function run() {
             res.send(result)
         })
 
+        // post web token
+        app.post('/login', async (req, res) => {
+            const email = req.body
+            const accessToken = jwt.sign(email, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' });
+            res.send({ accessToken })
+        })
+
         //get product
         app.get('/products', async (req, res) => {
             const query = {}
@@ -63,12 +84,20 @@ async function run() {
         })
 
         //get orders
-        app.get('/orders', async (req, res) => {
+        app.get('/orders', verifyJWT, async (req, res) => {
+            const decodedEmail = req.decoded.email
             const email = req.query.email;
-            const query = { email: email }
-            const cursor = orderCollection.find(query)
-            const orders = await cursor.toArray()
-            res.send(orders)
+
+            if (email === decodedEmail) {
+                const query = { email: email }
+                const cursor = orderCollection.find(query)
+                const orders = await cursor.toArray()
+                res.send(orders)
+            }
+            else {
+                res.status(403).send({ message: 'access forbidden' })
+            }
+
         })
 
         //delete order
