@@ -74,13 +74,19 @@ async function run() {
         app.put('/products/:id', async (req, res) => {
             const id = req.params
             const updatedProduct = req.body
-            const query = { _id: ObjectId(id) }
-            const option = { upsert: true }
-            const updatedDoc = {
-                $set: updatedProduct
+            if (!updatedProduct.name || !updatedProduct.url || !updatedProduct.price || !updatedProduct.description) {
+                return res.status(404).send({ message: 'not found' })
             }
-            const result = await productCollection.updateOne(query, updatedDoc, option)
-            res.send(result)
+            else {
+                const query = { _id: ObjectId(id) }
+                const option = { upsert: true }
+                const updatedDoc = {
+                    $set: updatedProduct
+                }
+                const result = await productCollection.updateOne(query, updatedDoc, option)
+                res.send(result)
+            }
+
         })
 
         //get orders
